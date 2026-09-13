@@ -50,6 +50,7 @@ use function Reprint\Importer\write_local_index_entry;
 use function WordPress\Filesystem\wp_join_unix_paths;
 use function WordPress\Filesystem\wp_unix_path_segments;
 use function WordPress\Reprint\Server\assert_valid_path;
+use function WordPress\Reprint\Server\is_absolute_path;
 use function WordPress\Reprint\Server\normalize_path;
 use function WordPress\Reprint\Server\parse_size;
 use function WordPress\Reprint\Server\path_is_same_as_or_descendant_of;
@@ -10208,7 +10209,7 @@ class ImportClient
     ): string {
         // Resolve to a remote absolute path (relative targets are based on
         // the source symlink's remote directory).
-        $remote_absolute_target = str_starts_with($target, "/")
+        $remote_absolute_target = is_absolute_path($target)
             ? normalize_path($target)
             : normalize_path(wp_join_unix_paths(dirname($remote_absolute_path), $target));
 

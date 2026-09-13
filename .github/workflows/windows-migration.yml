@@ -29,6 +29,7 @@ jobs:
           $PSNativeCommandUseErrorActionPreference = $true
           ./tests/e2e/windows/prepare-path-namespaces.ps1 "$env:GITHUB_WORKSPACE/namespace-cases.json"
           php tests/e2e/windows/verify-native-reader.php
+          php -d ffi.enable=false tests/e2e/windows/verify-native-reader.php --without-ffi
   windows-to-linux:
     needs: native-reader
     name: Pull Windows WordPress into Linux (${{ matrix.source }})

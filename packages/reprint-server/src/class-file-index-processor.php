@@ -1180,7 +1180,7 @@ final class FileIndexProcessor {
         if ($type === "dir") {
             // Actual empty directory, not a directory with all its children
             // excluded from the synchronization
-            $directory_handle = @opendir($path);
+            $directory_handle = @opendir(source_io_path($path));
             if ($directory_handle !== false) {
                 $item["empty"] = true;
                 while (true) {

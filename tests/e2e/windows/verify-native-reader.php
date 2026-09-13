@@ -1,10 +1,32 @@
 <?php
 /** Checks the actual reader before running the cross-host migration. */
 use WordPress\Reprint\Server\WindowsFilesystem;
+use WordPress\Reprint\Server\FileTreeProducer;
 use function WordPress\Reprint\Server\source_io_path;
 
 require dirname(__DIR__, 3) . '/packages/reprint-server/src/utils.php';
 require dirname(__DIR__, 3) . '/packages/reprint-server/src/class-windows-filesystem.php';
+require dirname(__DIR__, 3) . '/packages/reprint-server/src/class-file-tree-producer.php';
+
+if (($argv[1] ?? '') === '--without-ffi') {
+    if (WindowsFilesystem::available()) {
+        throw new RuntimeException('Disabled FFI must not register native file access.');
+    }
+    $ordinary = 'D:/Reprint namespace cases/Mixed Case/trailing';
+    if (source_io_path($ordinary) !== $ordinary || file_get_contents($ordinary) !== 'ordinary sibling!') {
+        throw new RuntimeException('Ordinary source reads must still work without FFI.');
+    }
+    try {
+        source_io_path($ordinary . '.');
+        throw new LogicException('A literal source name silently fell back to ordinary PHP normalization.');
+    } catch (RuntimeException $error) {
+        if (strpos($error->getMessage(), 'Cannot read the exact Windows filename') === false) {
+            throw $error;
+        }
+    }
+    echo "PASS: ordinary paths work without FFI; literal suffixes fail rather than aliasing.\n";
+    exit;
+}
 
 if (!WindowsFilesystem::available()) {
     throw new RuntimeException('The Windows CI host must provide the native source reader.');
@@ -55,6 +77,31 @@ foreach (['\\\\.\\PhysicalDrive0', '\\\\.\\pipe\\reprint-test'] as $device) {
     }
 }
 
+// Resume the real producer after one chunk. A short ordinary sibling must not
+// replace the literal file's size when restoring its cursor.
+$path = 'D:/Reprint chunk boundaries/literal.';
+$options = ['paths' => [$path], 'chunk_size' => 8192];
+$producer = new FileTreeProducer(dirname($path), $options);
+for ($number = 0; $number < 2; ++$number) {
+    if (!$producer->next_chunk()) {
+        throw new RuntimeException('Native producer stopped before its next chunk.');
+    }
+    $chunk = $producer->get_current_chunk();
+    if ($chunk['type'] !== 'file' || $chunk['data'] !== str_repeat('A', 8192) || $chunk['offset'] !== $number * 8192 || $chunk['size'] !== 16384) {
+        unset($chunk['data']);
+        throw new RuntimeException('Native producer lost bytes or metadata across resume: ' . json_encode($chunk));
+    }
+    if ($number === 0) {
+        $options['cursor'] = $producer->get_reentrancy_cursor();
+        unset($producer);
+        $producer = new FileTreeProducer(dirname($path), $options);
+    }
+}
+if (!$chunk['is_last_chunk'] || $producer->next_chunk()) {
+    throw new RuntimeException('An exact final native chunk must complete without an extra read error.');
+}
+unset($producer);
+
 // A host may tighten open_basedir after initialization. Retained registration
 // must not make a later native open escape that PHP restriction.
 ini_set('open_basedir', __DIR__);
@@ -69,4 +116,4 @@ try {
         throw $error;
     }
 }
-echo "PASS: native stat, bounded reads, seek, exact names, read-only modes, device rejection, and open_basedir.\n";
+echo "PASS: native stat, bounded reads, seek, resume, exact names, read-only modes, device rejection, and open_basedir.\n";

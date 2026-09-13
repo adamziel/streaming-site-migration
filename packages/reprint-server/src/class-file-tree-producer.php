@@ -186,7 +186,7 @@ class FileTreeProducer
         if ($path !== null && $byte_offset > 0) {
             // Resuming mid-file.
             clearstatcache(true, $path);
-            $size = @filesize($path);
+            $size = @filesize(source_io_path($path));
             if ($size === false) {
                 // File disappeared; treat as completed.
                 $this->current_file_meta = null;
@@ -518,6 +518,10 @@ class FileTreeProducer
             $changed = true;
             $error_type = "file_missing";
         } else {
+            // feof() can stay false until another read, even after an exact
+            // final chunk. Use the fresh size instead of emitting an empty-read
+            // error on the next step. This also works for native Windows streams.
+            $is_last = $is_last || $stat["size"] === $this->streaming_file_offset;
             $now_ctime = $stat["ctime"];
             if ($now_ctime !== $file["ctime"]) {
                 $changed = true;

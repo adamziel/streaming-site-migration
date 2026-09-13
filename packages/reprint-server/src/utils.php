@@ -800,7 +800,9 @@ function source_io_path(string $path): string {
 }
 
 if (!function_exists(__NAMESPACE__ . '\\source_realpath')) {
-/** Resolves source filesystem links without normalizing literal Windows filenames. */
+/**
+ * Resolves source filesystem links without normalizing literal Windows filenames.
+ */
 function source_realpath(string $path) {
     if (PHP_OS === 'WINNT') {
         if (!class_exists(WindowsFilesystem::class, false)) {
@@ -817,7 +819,9 @@ function source_realpath(string $path) {
 
 
 if (!function_exists(__NAMESPACE__ . '\\source_readlink')) {
-/** Reads a source link target without normalizing a literal Windows link name. */
+/**
+ * Reads a source link target without normalizing a literal Windows link name.
+ */
 function source_readlink(string $path) {
     if (PHP_OS === 'WINNT') {
         if (!class_exists(WindowsFilesystem::class, false)) {

@@ -185,4 +185,8 @@ $cases['parent-junction-not-followed'] = @{
     error='use --follow-symlinks'
 }
 
+New-Item -ItemType Directory -Force 'D:\Reprint chunk boundaries' | Out-Null
+[NamespaceFixtures]::Write('\\?\D:\Reprint chunk boundaries\literal', 'short sibling')
+[NamespaceFixtures]::Write('\\?\D:\Reprint chunk boundaries\literal.', ('A' * 16384))
+
 $cases | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $ManifestPath -Encoding utf8NoBOM

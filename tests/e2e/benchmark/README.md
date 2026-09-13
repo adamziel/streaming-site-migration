@@ -14,6 +14,7 @@ not a CI failure threshold.
 | --- | --- |
 | `html` | HTML links with distinct URLs. |
 | `style-elements` | CSS URLs inside STYLE elements. |
+| `style-large-value` | 8,192 STYLE elements in one value, exposing repeated whole-value copies. |
 | `blocks-literal-urls` | Plain URLs inside nested Divi attributes. |
 | `blocks-nested-html` | HTML in `module.content.value`, with distinct URLs. Ordinary imports keep the raw-JSON fast path; selected-site imports parse the nested strings. |
 | `blocks-repeated-urls` | The same HTML shape with one repeated URL and distinct surrounding text. |
@@ -40,8 +41,9 @@ These cases measure lookup misses, not the cost of loading a large site director
 
 ## Reading the numbers
 
-Each case contains 128 distinct values with 32 entries each. One PHP process
-runs five samples; the report uses the median. Each sample starts a new rewriter
+Most cases contain 128 distinct values with 32 entries each. `style-large-value`
+uses one value with 8,192 distinct URLs. One PHP process runs five samples; the
+report uses the median. Each sample starts a new rewriter
 and reuses it across the values, as SQL apply does. This includes building the
 URL mapping. PHP startup, fixture creation and output validation are not timed.
 

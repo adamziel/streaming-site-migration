@@ -38,7 +38,8 @@ function reprint_benchmark_url_rewrite(string $build_path, string $scenario): vo
     // as SQL apply does. Repeating one value would mostly benchmark cache hits.
     $fixtures = [];
     $input_bytes = 0;
-    for ($row = 0; $row < 128; ++$row) {
+    $row_count = $corpus === 'style-large-value' ? 1 : 128;
+    for ($row = 0; $row < $row_count; ++$row) {
         $fixture = reprint_url_rewrite_benchmark_fixture($corpus, $row);
         $input_bytes += strlen($fixture['input']);
         $fixtures[] = $fixture;

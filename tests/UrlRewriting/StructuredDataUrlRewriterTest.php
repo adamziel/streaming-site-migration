@@ -69,6 +69,66 @@ class StructuredDataUrlRewriterTest extends TestCase
         }
     }
 
+    /** The faster HTML pass must keep the block reader's token boundaries. */
+    public function testHtmlFastPathKeepsDocumentWrappersIncompleteTokensAndBlockKeys(): void
+    {
+        $rewriter = new StructuredDataUrlRewriter(['https://source.example' => 'https://target.example'], []);
+        foreach ([
+            [
+                '<body data-url="https://source.example/a"><p>https://source.example/b</p></body>',
+                '<body data-url="https://source.example/a"><p>https://target.example/b</p></body>',
+            ],
+            [
+                '<p data-url="https://source.example/a">Text</p><a href="https://source.example/b',
+                '<p data-url="https://target.example/a">Text</p><a href="https://source.example/b',
+            ],
+            [
+                '<!-- wp:test {"https://source.example/key":"https://source.example/value"} /-->',
+                '<!-- wp:test {"https:\/\/source.example\/key":"https:\/\/target.example\/value"} /-->',
+            ],
+        ] as [$input, $expected]) {
+            $this->assertSame($expected, $rewriter->rewrite_known_block_markup_value($input));
+        }
+    }
+
+    /** A configured source path cannot join two HTML text tokens into one URL. */
+    public function testSourceBaseContainingMarkupUsesSeparateHtmlTokens(): void
+    {
+        $rewriter = new StructuredDataUrlRewriter([
+            'https://source.example/a</p><p>b' => 'https://target.example',
+        ], []);
+        $input = '<p>https://source.example/a</p><p>b</p>';
+        $this->assertSame($input, $rewriter->rewrite_known_block_markup_value($input));
+    }
+
+    /** An unchanged CSS value needs no HTML attribute edit or quote conversion. */
+    public function testUnchangedStyleAttributeKeepsItsOriginalQuotes(): void
+    {
+        $rewriter = new StructuredDataUrlRewriter(['https://source.example' => 'https://target.example'], []);
+        $input = '<div style=\'background:url("/news/a")\'>Text</div>';
+        $this->assertSame($input, $rewriter->rewrite_known_block_markup_value($input));
+    }
+
+    /** Cross the HTML parser's edit-batch limit, with and without an incomplete tail. */
+    #[RunInSeparateProcess]
+    #[PreserveGlobalState(false)]
+    public function testManyStyleElementsKeepChildLinksAndIncompleteMarkup(): void
+    {
+        ini_set('memory_limit', '64M');
+        $input = '';
+        for ($index = 0; $index < 3000; ++$index) {
+            $input .= '<style>.selected{background:url("https://source.example/article/' . $index . '")}'
+                . '.child{background:url("https://source.example/news/' . $index . '")}</style>';
+        }
+        $expected = str_replace('https://source.example/article/', 'https://target.example/article/', $input);
+        foreach (['', '<a href="https://source.example/incomplete'] as $tail) {
+            $rewriter = new StructuredDataUrlRewriter(['https://source.example' => 'https://target.example'], [
+                'https://source.example' => ['/news/'],
+            ]);
+            $this->assertSame($expected . $tail, $rewriter->rewrite_known_block_markup_value($input . $tail));
+        }
+    }
+
     /** A canonical absolute child URL already has its final bytes. */
     public function testCanonicalChildUrlsDoNotReserializeTheirEnclosingFormat(): void
     {

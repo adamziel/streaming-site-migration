@@ -103,8 +103,6 @@ foreach ($key in $spellings.Keys) {
 # An actual device has no file suffix; the physical-device test covers rejection.
 $cases['reserved-file'] = @{source="$root\Mixed Case\NUL.txt"; destination='D:/Reprint namespace cases/Mixed Case/NUL.txt'; content='literal NUL.txt'}
 $cases['physical-device'] = @{source='\\.\PhysicalDrive0'; error='Windows device names cannot select migration files'}
-[NamespaceFixtures]::Write("\\?\$root\Mixed Case\hello.txt:notes", 'attached stream bytes')
-[NamespaceFixtures]::Write("\\?\$root\Mixed Case\hello.txt:large", ('0123456789' * 600000))
 
 # Both spellings exist. A source that lowercases names would silently lose a file.
 New-Item -ItemType Directory -Force "$root\case-sensitive" | Out-Null

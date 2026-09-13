@@ -10,7 +10,27 @@ permissions:
   contents: read
 
 jobs:
+  native-reader:
+    name: Read exact Windows filenames
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, ffi
+          ini-values: ffi.enable=true
+          coverage: none
+      - name: Check native source reads
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          ./tests/e2e/windows/prepare-path-namespaces.ps1 "$env:GITHUB_WORKSPACE/namespace-cases.json"
+          php tests/e2e/windows/verify-native-reader.php
   windows-to-linux:
+    needs: native-reader
     name: Pull Windows WordPress into Linux (${{ matrix.source }})
     strategy:
       fail-fast: false
@@ -64,8 +84,6 @@ jobs:
           }
           $windowsHost = (wsl -d Ubuntu-24.04 --exec bash -c "ip route show default | cut -d ' ' -f 3").Trim()
           ./tests/e2e/windows/prepare-path-namespaces.ps1 "$env:GITHUB_WORKSPACE/namespace-cases.json"
-          php tests/e2e/windows/probe-native-paths.php "$env:GITHUB_WORKSPACE/namespace-cases.json"
-          php tests/e2e/windows/verify-native-reader.php
           php tests/e2e/windows/prepare-source.php "$siteDirectory" "http://${windowsHost}:8081" "$env:GITHUB_WORKSPACE/source-manifest.json"
           New-NetFirewallRule -DisplayName ReprintMigration -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8081 | Out-Null
           Start-Process php -ArgumentList '-S', '0.0.0.0:8081', '-t', ('"' + $siteDirectory + '"') -RedirectStandardOutput "$env:RUNNER_TEMP/source.stdout.log" -RedirectStandardError "$env:RUNNER_TEMP/source.stderr.log"

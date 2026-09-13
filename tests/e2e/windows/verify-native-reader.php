@@ -16,8 +16,12 @@ if ($stat['size'] !== 17 || ($stat['mode'] & 0170000) !== 0100000) {
     throw new RuntimeException('Native stat must describe the literal file.');
 }
 $file = fopen($uri, 'rb');
-if (fread($file, 8) !== 'literal ' || ftell($file) !== 8 || fseek($file, 3) !== 0 || fread($file, 14) !== 'eral trailing.') {
-    throw new RuntimeException('Native reads and seeks must retain the literal file and byte offset.');
+$first = fread($file, 8);
+$offset = ftell($file);
+$seek = fseek($file, 3);
+$tail = fread($file, 14);
+if ($first !== 'literal ' || $offset !== 8 || $seek !== 0 || $tail !== 'eral trailing.') {
+    throw new RuntimeException('Native read/seek mismatch: ' . json_encode(compact('path', 'first', 'offset', 'seek', 'tail')));
 }
 fclose($file);
 $before = hash_file('sha256', $uri);

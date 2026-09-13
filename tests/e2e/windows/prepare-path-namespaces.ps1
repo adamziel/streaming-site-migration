@@ -142,4 +142,47 @@ $cases['combined-volume-aliases'] = @{
     unique_basename='hello.txt'
 }
 
+# An ordinary non-empty sibling must not hide an empty literal directory.
+New-Item -ItemType Directory -Force "$root\empty" | Out-Null
+[NamespaceFixtures]::Write("\\?\$root\empty\hello.txt", 'non-empty sibling')
+foreach ($name in @('empty.', 'empty ')) {
+    [NamespaceFixtures]::Directory("\\?\$root\$name")
+    $cases['literal-empty-' + $cases.Count] = @{
+        source="\\?\$root\$name"
+        files=@()
+        directories=@("D:/Reprint namespace cases/$name")
+    }
+}
+
+# Keep link targets outside this selection so --no-follow-symlinks can prove
+# that indexing a link does not also grant access to its target tree.
+$linkRoot = 'D:\Reprint link cases'
+New-Item -ItemType Directory -Force $linkRoot | Out-Null
+New-Item -ItemType Junction -Path "$linkRoot\junction" -Target "$root\Mixed Case" | Out-Null
+New-Item -ItemType SymbolicLink -Path "$linkRoot\file-link" -Target "$root\Mixed Case\hello.txt" | Out-Null
+$cases['junction-followed'] = @{
+    source="\\?\$linkRoot\junction"
+    destination='D:/Reprint link cases/junction/hello.txt'
+    content='namespace file'
+    links=@('D:/Reprint link cases/junction')
+}
+$cases['file-link-followed'] = @{
+    source="$linkRoot\file-link"
+    destination='D:/Reprint link cases/file-link'
+    content='namespace file'
+    links=@('D:/Reprint link cases/file-link')
+}
+$cases['junction-not-followed'] = @{
+    source="\\?\$linkRoot\junction"
+    files=@()
+    options=@('--no-follow-symlinks')
+    links=@('D:/Reprint link cases/junction')
+    absent=@('D:/Reprint namespace cases')
+}
+$cases['parent-junction-not-followed'] = @{
+    source="\\?\$linkRoot\junction\hello.txt"
+    options=@('--no-follow-symlinks')
+    error='use --follow-symlinks'
+}
+
 $cases | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $ManifestPath -Encoding utf8NoBOM

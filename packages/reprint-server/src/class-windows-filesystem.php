@@ -101,8 +101,15 @@ final class WindowsFilesystem {
             throw new InvalidArgumentException('Windows path must be non-empty and contain no NUL bytes.');
         }
         $buffer = self::$api->new('WCHAR[32768]');
-        $length = self::$api->GetFullPathNameW(self::wide($path), 32768, $buffer, null);
-        $absolute = self::path_result($buffer, $length, $path);
+        // GetFullPathNameW trims trailing dots even with a literal prefix.
+        // Literal inputs are already absolute; resolving them again selects a
+        // different file when an ordinary sibling exists.
+        if (substr($path, 0, 4) === '\\\\?\\') {
+            $absolute = $path;
+        } else {
+            $length = self::$api->GetFullPathNameW(self::wide($path), 32768, $buffer, null);
+            $absolute = self::path_result($buffer, $length, $path);
+        }
         // Reject device objects before opening any handle. These are the file
         // namespace roots supported by the migration, not arbitrary devices.
         if (preg_match('~^\\\\\\\\[?.]\\\\~', $absolute)) {

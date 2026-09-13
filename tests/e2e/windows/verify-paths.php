@@ -27,6 +27,9 @@ foreach ($manifest['path_cases'] as $name => $case) {
         foreach ((array) $case['source'] as $selection) {
             $command[] = '--include=' . $selection;
         }
+        foreach ($case['options'] ?? [] as $option) {
+            $command[] = $option;
+        }
         // A repeated failure must not resume past an uninspected or unwritten file.
         for ($attempt = 1; $attempt <= (isset($case['error']) ? 2 : 1); ++$attempt) {
             $process = proc_open($command, [0 => ['pipe', 'r'], 1 => ['file', $log_path, 'w'], 2 => ['file', $log_path, 'a']], $pipes);
@@ -58,6 +61,21 @@ foreach ($manifest['path_cases'] as $name => $case) {
             }
             if (basename($local_file) === 'hello.txt' && file_exists(dirname($local_file) . '/HELLO.TXT')) {
                 throw new RuntimeException('The Linux target must preserve filename case, not emulate Windows lookup.');
+            }
+        }
+        foreach ($case['directories'] ?? [] as $directory) {
+            if (!is_dir($root . '/files/' . $directory)) {
+                throw new RuntimeException('Missing literal empty directory: ' . $directory);
+            }
+        }
+        foreach ($case['links'] ?? [] as $link) {
+            if (!is_link($root . '/files/' . $link)) {
+                throw new RuntimeException('The downloaded link must remain a link: ' . $link);
+            }
+        }
+        foreach ($case['absent'] ?? [] as $absent) {
+            if (file_exists($root . '/files/' . $absent)) {
+                throw new RuntimeException('The no-follow pull downloaded an outside target: ' . $absent);
             }
         }
         if (isset($case['unique_basename'])) {
